@@ -563,7 +563,7 @@ class Simulator(object):
         y = coords[:,1]
         if plot_env:
             if state_func_env:
-                self.ENV.plot_state_func(state_vals=np.zeros(self.n_state), ax=self.ax, annotate=False, interpolation='none', cmap=plt.cm.Greys, cbar=False, cbar_label='')
+                self.ENV.plot_state_func(state_vals=np.zeros(self.n_state), ax=self.ax, annotate=False, cmap=plt.cm.Greys, cbar=False, cbar_label='')
                 if self.ENV.__type__ == 'roomworld' or self.ENV.__type__ == 'gridworld':
                     x = x-1
                     y = y-1
