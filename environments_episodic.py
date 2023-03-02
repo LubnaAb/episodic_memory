@@ -37,8 +37,8 @@ class EpisodicGraph(GraphEnv):
         """
         xyc = np.zeros((self.n_state, 3))
         for i, (ob, ti, ep) in enumerate(self.states):
-            xyc[i, 0] = ob
-            xyc[i, 1] = ti
+            xyc[i, 0] = ti
+            xyc[i, 1] = ob
             xyc[i, 2] = ep
 
         self.xy = xyc[:, :2]
@@ -78,17 +78,18 @@ def create_access_matrix(states, distances, k, n):
         object_i, time_i, episode_i = state_i
         object_j, time_j, episode_j = state_j
         delta = 1 if episode_i == episode_j else 0
-        dist = distances[object_i, object_j]
-        V = k * delta + dist * np.abs(time_i - time_j) ** n
+        dist = distances[int(object_i), int(object_j)]
+        V = dist * (1 - np.abs(time_i - time_j)) ** n
         return V
 
     O = np.zeros((len(states), len(states)))
 
     for i, state_i in enumerate(states):
         for j, state_j in enumerate(states):
-            O[i, j] = compute_v(state_i, state_j)
+            if i != j:
+                O[i, j] = compute_v(state_i, state_j)
     for i in range(len(states)):
-        O[i, i] -= O[i, ].sum()
+        O[i, i] = -O[i, ].sum()
 
     A = np.zeros((len(states), len(states)))
     n = -np.diag(O)
@@ -99,11 +100,9 @@ def create_access_matrix(states, distances, k, n):
                 A[i, j] = O[i, j] / n[i]
             else:
                 A[i, j] = 0
-
-    A = (A + A.T) / 2
-    return A
-
     
+    print(A)
+    return A
 
     
 
