@@ -5,12 +5,13 @@ from environments import GraphEnv
 from utils import row_norm
 
 class EpisodicGraph(GraphEnv):
-    def __init__(self, states, distances, k=10, n=1, start=0):
+    def __init__(self, states, distances, k=0, m=1, n=1, start=0):
         self.n_state = len(states)
         self.start = start
         self.states = states
         self.distances = distances
         self.k = k
+        self.m = m
         self.n = n
         self._access_matrix()
         super(EpisodicGraph, self).__init__()
@@ -29,7 +30,7 @@ class EpisodicGraph(GraphEnv):
         OUTPUTS: A = adjacency matrix
                  T = stochastic matrix
         """
-        self.A = create_access_matrix(self.states, self.distances, self.k, self.n)
+        self.A = create_access_matrix(self.states, self.distances, self.k, self.m, self.n)
 
     def _node_info(self):
         """
@@ -68,7 +69,7 @@ class EpisodicGraph(GraphEnv):
 
 
 
-def create_access_matrix(states, distances, k, n):
+def create_access_matrix(states, distances, k, m, n):
     """
     Creates an access matrix from a generator matrix.
     OUTPUTS: A = adjacency matrix
@@ -77,9 +78,9 @@ def create_access_matrix(states, distances, k, n):
     def compute_v(state_i, state_j):
         object_i, time_i, episode_i = state_i
         object_j, time_j, episode_j = state_j
-        delta = 1 if episode_i == episode_j else 0
+        delta = 0 if episode_i == episode_j else 1
         dist = distances[int(object_i), int(object_j)]
-        V = dist * (1 - np.abs(time_i - time_j)) ** n
+        V = k ** delta * dist ** m * (1 - np.abs(time_i - time_j)) ** n
         return V
 
     O = np.zeros((len(states), len(states)))
@@ -101,7 +102,6 @@ def create_access_matrix(states, distances, k, n):
             else:
                 A[i, j] = 0
     
-    print(A)
     return A
 
     
