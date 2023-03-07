@@ -78,9 +78,16 @@ def create_access_matrix(states, distances, k, m, n):
     def compute_v(state_i, state_j):
         object_i, time_i, episode_i = state_i
         object_j, time_j, episode_j = state_j
+        dist = distances[int(object_i), int(object_j)]  # similarity
+
+        # Model 1
+        # delta = 1 if episode_i == episode_j else 0
+        # V = k * delta + dist ** m * (1 - np.abs(time_i - time_j)) ** n
+       
+        # Model 2
         delta = 0 if episode_i == episode_j else 1
-        dist = distances[int(object_i), int(object_j)]
         V = k ** delta * dist ** m * (1 - np.abs(time_i - time_j)) ** n
+
         return V
 
     O = np.zeros((len(states), len(states)))
