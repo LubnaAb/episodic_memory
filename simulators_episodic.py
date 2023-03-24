@@ -3,6 +3,7 @@ from visualization import add_jitter, figsize
 import seaborn.objects as so
 import pandas as pd
 import numpy as np
+from autocorrelation import estimate_episodic_acf, estimate_episodic_acf_v2
 
 class EpisodicSimulator(Simulator):
     def plot_trajectory(self, samp=0):
@@ -21,3 +22,9 @@ class EpisodicSimulator(Simulator):
             )
             .add(so.Line(coords, color="black"))
         )
+    
+    def estimate_cf(self, axis=None):
+        samps_state = self.ENV.states[self.state_seqs]
+        samps_state[:, :, 0] = self.ENV.semantic_mds[samps_state[:, :, 0].astype(int)]
+        self.acf_mean, self.acf_sem = estimate_episodic_acf(samps_state, axis=axis)
+

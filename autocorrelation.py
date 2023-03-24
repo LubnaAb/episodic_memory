@@ -132,7 +132,7 @@ def estimate_occ_acf(data, d=0):
     n_t = data.shape[0]
     n_samp = data.shape[1]
     n_state = data.max()+1
-
+    print(data)
     AC_samp = np.zeros((n_t,n_samp))
     for k in range(n_t):
         X = roll_pad(data.T, -k, (d+1)*(n_state+1)).T
@@ -170,4 +170,92 @@ def estimate_occ_zero_cf(data, d=0):
     else:
         AC_sem = np.zeros(AC.shape)
     # use variance across samples as a sample variance (does not take into account within-sample, cross-lag variance)
+    return AC, AC_sem
+
+
+def estimate_episodic_acf(data, d=0):
+    """
+    FUNCTION: estimate episodic (time space, semantic space) autocorrelation
+    INPUTS: data = (n_t, n_samp, n_vars) matrix of samples
+    """
+
+    n_samp = data.shape[0]
+    n_t = data.shape[1] - 1
+    n_vars = data.shape[2]
+
+    # center data variables
+    data = data - data.mean(axis=1, keepdims=True)
+
+    AC_samp = np.zeros((n_t, n_samp))
+
+    for t in range(n_t):
+        data_roll = np.roll(data, t, axis=0)
+
+        for samp in range(n_samp):
+                
+                Sxy = data[samp, t, :].reshape(n_vars, -1) @ data_roll[samp, t, :].reshape(-1, n_vars)
+                Sxy = np.linalg.eigvals(Sxy)
+                Sxy = sum([l for l in Sxy if l > 0])
+
+                Sxx = data[samp, t, :].reshape(n_vars, -1) @ data[samp, t, :].reshape(-1, n_vars)
+                Sxx = np.linalg.eigvals(Sxx)
+                Sxx = sum([l for l in Sxx if l > 0])
+
+                Syy = data_roll[samp, t, :].reshape(n_vars, -1) @ data_roll[samp, t, :].reshape(-1, n_vars)
+                Syy = np.linalg.eigvals(Syy)
+                Syy = sum([l for l in Syy if l > 0])
+
+                if Sxx == 0 or Syy == 0:
+                    if Sxy == 0:
+                        AC_samp[t, samp] = 1
+                    else:
+                        # raise exception
+                        raise ValueError('if Sxx or Syy is zero, Sxy must be zero')
+                else:
+                    AC_samp[t, samp] = Sxy / (Sxx * Syy)
+
+    AC = AC_samp.mean(1)
+    
+    if n_samp > 1:
+        AC_sem = sem(AC_samp, axis=1)
+    else:
+        AC_sem = np.zeros(AC.shape)
+
+    return AC, AC_sem
+
+
+def estimate_episodic_acf_v2(data, d=0, axis=None):
+    """
+    FUNCTION: estimate episodic (time space, semantic space) autocorrelation
+    INPUTS: data = (n_t, n_samp, n_vars) matrix of samples
+    """
+    n_samp = data.shape[0]
+    n_t = data.shape[1]
+    n_vars = data.shape[2]
+
+    # standardize data variables
+    data -= data.mean(axis=1).reshape(n_samp, -1, n_vars)
+    data /= data.std(axis=1).reshape(n_samp, -1, n_vars)
+
+    AC_samp = np.zeros((n_t, n_samp, n_vars))
+    for var in range(n_vars):
+        for samp in range(n_samp):
+            c = np.correlate(data[samp, :, var], data[samp, :, var], mode='same')
+            print(c)
+            AC_samp[:, samp, var] = c
+
+    if axis is None:
+        AC_samp = AC_samp.mean(axis=2)
+    else:
+        AC_samp = AC_samp[:, :, axis].reshape(n_t, n_samp, -1).mean(axis=2)
+
+    # AC_samp = AC_samp / AC_samp[0, :]
+
+    AC = AC_samp.mean(axis=1)
+
+    if n_samp > 1:
+        AC_sem = sem(AC_samp, axis=1)
+    else:
+        AC_sem = np.zeros(AC.shape)
+
     return AC, AC_sem

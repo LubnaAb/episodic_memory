@@ -1,5 +1,6 @@
 import numpy as np
 import networkx as nx
+from sklearn.manifold import MDS
 
 from environments import GraphEnv
 from utils import row_norm
@@ -10,6 +11,9 @@ class EpisodicGraph(GraphEnv):
         self.start = start
         self.states = states
         self.distances = distances
+        # Apply Multi Dimension Scaling using self.distances
+        model = MDS(n_components=1, dissimilarity="precomputed", random_state=1)
+        self.semantic_mds = model.fit_transform(self.distances).reshape(-1)
         self.k = k
         self.m = m
         self.n = n
@@ -39,7 +43,7 @@ class EpisodicGraph(GraphEnv):
         xyc = np.zeros((self.n_state, 3))
         for i, (ob, ti, ep) in enumerate(self.states):
             xyc[i, 0] = ti
-            xyc[i, 1] = ob
+            xyc[i, 1] = self.semantic_mds[int(ob)]
             xyc[i, 2] = ep
 
         self.xy = xyc[:, :2]
