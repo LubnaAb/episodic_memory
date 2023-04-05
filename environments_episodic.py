@@ -39,10 +39,10 @@ class EpisodicGraph(GraphEnv):
         FUNCTION: Defines node plot positions and communities/bnecks.
         """
         xyc = np.zeros((self.n_state, 3))
-        for i, (ob, ti, ep) in enumerate(self.states):
-            xyc[i, 0] = ti
-            xyc[i, 1] = self.semantic_mds[int(ob)]
-            xyc[i, 2] = ep
+        for i, row in self.states.iterrows():
+            xyc[i, 0] = row["time"]
+            xyc[i, 1] = self.semantic_mds.loc[row["word"]]
+            # xyc[i, 2] = row["location"]
 
         self.xy = xyc[:, :2]
         self.info_state.loc[:, "x"] = xyc[:, 0]
@@ -71,16 +71,22 @@ class EpisodicGraph(GraphEnv):
 
 
 
-def create_access_matrix(states, distances, k, m, n):
+def create_access_matrix(states, similarities, k, m, n):
     """
     Creates an access matrix from a generator matrix.
     OUTPUTS: A = adjacency matrix
              T = stochastic matrix
     """
     def compute_v(state_i, state_j):
-        object_i, time_i, episode_i = state_i
-        object_j, time_j, episode_j = state_j
-        dist = distances[int(object_i), int(object_j)]  # similarity
+
+        semantic_i = state_i["word"]
+        semantic_j = state_j["word"]
+        time_i = state_i["time"]
+        time_j = state_j["time"]
+        episode_i = state_i["location"]
+        episode_j = state_j["location"]
+
+        dist = similarities.loc[semantic_i][semantic_j]  # similarity
 
         # Model 1
         # delta = 1 if episode_i == episode_j else 0
@@ -94,8 +100,8 @@ def create_access_matrix(states, distances, k, m, n):
 
     O = np.zeros((len(states), len(states)))
 
-    for i, state_i in enumerate(states):
-        for j, state_j in enumerate(states):
+    for i, state_i in states.iterrows():
+        for j, state_j in states.iterrows():
             if i != j:
                 O[i, j] = compute_v(state_i, state_j)
     for i in range(len(states)):
