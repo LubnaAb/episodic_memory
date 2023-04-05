@@ -6,6 +6,7 @@ import numpy as np
 from numpy.matlib import repmat
 from scipy.stats import sem
 from scipy.optimize import LinearConstraint, Bounds
+import statsmodels.api as sm
 
 tol = 10**-3 # tolerance for bounds and linear constraints
 
@@ -233,23 +234,19 @@ def estimate_episodic_acf_v2(data, d=0, axis=None):
     n_t = data.shape[1]
     n_vars = data.shape[2]
 
-    # standardize data variables
-    data -= data.mean(axis=1).reshape(n_samp, -1, n_vars)
-    data /= data.std(axis=1).reshape(n_samp, -1, n_vars)
-
     AC_samp = np.zeros((n_t, n_samp, n_vars))
-    for var in range(n_vars):
-        for samp in range(n_samp):
-            c = np.correlate(data[samp, :, var], data[samp, :, var], mode='same')
-            print(c)
-            AC_samp[:, samp, var] = c
 
     if axis is None:
-        AC_samp = AC_samp.mean(axis=2)
-    else:
-        AC_samp = AC_samp[:, :, axis].reshape(n_t, n_samp, -1).mean(axis=2)
+        axis = list(range(n_vars))
+    elif type(axis) is int:
+        axis = [axis]
+    
+    for var in axis:
+        for samp in range(n_samp):
+            acor = sm.tsa.acf(data[samp, :, var], nlags=n_t - 1, fft=False)
+            AC_samp[:, samp, var] = np.abs(acor)
 
-    # AC_samp = AC_samp / AC_samp[0, :]
+    AC_samp = AC_samp[:, :, axis].reshape(n_t, n_samp, -1).mean(axis=2)
 
     AC = AC_samp.mean(axis=1)
 

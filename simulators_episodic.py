@@ -26,5 +26,6 @@ class EpisodicSimulator(Simulator):
     def estimate_cf(self, axis=None):
         samps_state = self.ENV.states[self.state_seqs]
         samps_state[:, :, 0] = self.ENV.semantic_mds[samps_state[:, :, 0].astype(int)]
-        self.acf_mean, self.acf_sem = estimate_episodic_acf(samps_state, axis=axis)
+
+        self.acf_mean, self.acf_sem = estimate_episodic_acf_v2(samps_state, axis=axis)
 
