@@ -225,7 +225,7 @@ def estimate_episodic_acf(data, d=0):
     return AC, AC_sem
 
 
-def estimate_episodic_acf_v2(data, d=0, axis=None):
+def estimate_episodic_acf_v2(data, axis=None):
     """
     FUNCTION: estimate episodic (time space, semantic space) autocorrelation
     INPUTS: data = (n_t, n_samp, n_vars) matrix of samples
