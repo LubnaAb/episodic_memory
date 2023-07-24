@@ -246,8 +246,8 @@ def estimate_episodic_acf_v2(data, axis=None):
             acor = sm.tsa.acf(data[samp, :, var], nlags=n_t - 1, fft=False)
             AC_samp[:, samp, var] = np.abs(acor)
 
-    AC_samp = AC_samp[:, :, axis].reshape(n_t, n_samp, -1).mean(axis=2)
-
+    # AC_samp = AC_samp[:, :, axis].reshape(n_t, n_samp, -1).mean(axis=2)
+    AC_samp = AC_samp[:, :, axis].reshape(n_t, n_samp, -1)
     AC = AC_samp.mean(axis=1)
 
     if n_samp > 1:
