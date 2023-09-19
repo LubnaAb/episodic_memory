@@ -1,20 +1,25 @@
 import numpy as np
 import networkx as nx
+import pandas as pd
 
 from environments import GraphEnv
 from utils import row_norm
 
 class EpisodicGraph(GraphEnv):
-    def __init__(self, states, distances, semantic_mds, k=0, m=1, n=1, start=0):
+    def __init__(self, states, semantic_sim, semantic_mds, spatial_sim, spatial_mds, k=0, m=1, n=1, o=1, start=0):
         self.n_state = len(states)
         self.start = start
         self.states = states
-        self.distances = distances
+        self.semantic_sim = semantic_sim
         # Apply Multi Dimension Scaling using self.distances
         self.semantic_mds = semantic_mds
+
+        self.spatial_sim = spatial_sim
+        self.spatial_mds = spatial_mds
         self.k = k
         self.m = m
         self.n = n
+        self.o = o
         self._access_matrix()
         super(EpisodicGraph, self).__init__()
         self._state_information()
@@ -24,6 +29,7 @@ class EpisodicGraph(GraphEnv):
         self.laplacian = self.degree_mat - self.A
         self.n_edge = np.sum(self.A)
         self.T = row_norm(self.A)
+        self.T_torch = None
         self.fname_graph = "figures/episodic_graph.png"
 
     def _access_matrix(self):
@@ -32,7 +38,7 @@ class EpisodicGraph(GraphEnv):
         OUTPUTS: A = adjacency matrix
                  T = stochastic matrix
         """
-        self.A = create_access_matrix(self.states, self.distances, self.k, self.m, self.n)
+        self.A = create_access_matrix(self.states, self.semantic_sim, self.spatial_sim, self.k, self.m, self.n, self.o)
 
     def _node_info(self):
         """
@@ -69,9 +75,29 @@ class EpisodicGraph(GraphEnv):
         nx.set_node_attributes(G, name="y", values=nodesdf.y.to_dict())
         self.G = G
 
+    def compute_reward(self, novel_episode: pd.DataFrame):
+        """Defines reward function."""
+
+        self.R_state = np.zeros((self.n_state))
+        for i in range(self.n_state):
+            self.R_state[i] = self._compute_reward(self.states.iloc[i], novel_episode)
 
 
-def create_access_matrix(states, similarities, k, m, n):
+    def _compute_reward(self, state, novel_episode: pd.DataFrame):
+        """Computes reward for a given state."""
+        # loop over rows in novel episode
+        reward = 0
+        for i, row in novel_episode.iterrows():
+            # compute distance between row word and state word
+            rew = self.semantic_sim.loc[state["word"]][row["word"]]
+            rew += self.spatial_sim.loc[state["location"]][row["location"]]
+            # compute reward
+            reward += rew
+
+        return reward
+
+
+def create_access_matrix(states, semantic_sim, spatial_sim, k, m, n, o):
     """
     Creates an access matrix from a generator matrix.
     OUTPUTS: A = adjacency matrix
@@ -81,20 +107,25 @@ def create_access_matrix(states, similarities, k, m, n):
 
         semantic_i = state_i["word"]
         semantic_j = state_j["word"]
-        time_i = state_i["time"]
-        time_j = state_j["time"]
-        episode_i = state_i["location"]
-        episode_j = state_j["location"]
+        temporal_i = state_i["time"]
+        temporal_j = state_j["time"]
+        spatial_i = state_i["location"]
+        spatial_j = state_j["location"]
 
-        dist = similarities.loc[semantic_i][semantic_j]  # similarity
+        episode_i = state_i["episode"]
+        episode_j = state_j["episode"]
+
+        semantic_s = semantic_sim.loc[semantic_i][semantic_j]  # similarity
+        temporal_s = (1 - abs(temporal_i - temporal_j))
+        spatial_s = spatial_sim.loc[spatial_i][spatial_j]
 
         # Model 1
         # delta = 1 if episode_i == episode_j else 0
-        # V = k * delta + dist ** m * (1 - np.abs(time_i - time_j)) ** n
+        # V = k * delta + dist ** m * (1 - np.abs(temporal_i - temporal_j)) ** n
        
         # Model 2
         delta = 0 if episode_i == episode_j else 1
-        V = k ** delta * dist ** m * (1 - np.abs(time_i - time_j)) ** n
+        V = k ** delta * semantic_s ** m * temporal_s ** n * spatial_s ** o
 
         return V
 

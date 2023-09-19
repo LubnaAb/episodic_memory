@@ -20,6 +20,8 @@ from timer import timeit_debug, timeit_info
 from numba import jit, prange
 from autocorrelation import estimate_occ_zero_cf, estimate_occ_acf
 
+import torch
+from torch.distributions import Categorical
 
 random_state = np.random.RandomState(1234)
 
@@ -45,7 +47,7 @@ class Simulator(object):
         self.target_dir = target_dir
         self.sequences_sampled = False
         self.set_viz_scheme()
-        if hasattr(self.ENV, 'R'):
+        if hasattr(self.ENV, 'R') or hasattr(self.ENV, 'R_state'):
             self.no_reward_func = False # sampling functions will sample rewards
         else:
             self.no_reward_func = True # sampling functions will not sample rewards
@@ -201,19 +203,24 @@ class Simulator(object):
         state_seqs = np.zeros((n_samp, n_seq_steps))
         rhos = np.zeros((n_samp, n_seq_steps, self.n_state))
         rewards = np.zeros((n_samp, n_seq_steps))
+        log_probs = torch.zeros((n_samp, n_seq_steps))
         for ns in iterator:
             state = self._sample_state(rho_start)
-            state_seqs[ns,0] = state
-            rhos[ns,0,:] = rho_start # note rho_stop convention at step 0
+            state_seqs[ns, 0] = state
+            rhos[ns, 0, :] = rho_start  # note rho_stop convention at step 0
+            log_probs[ns, 0] = Categorical(torch.tensor(rho_start)).log_prob(torch.tensor(state)).item()  # log prob at
+            # step 0
+
             if not self.no_reward_func:
-                rewards[ns,0] = self._sample_reward(state)
+                rewards[ns, 0] = self._sample_reward(state)
             # loop within trajectories
             rho_inter = process_rho(state, self.n_state) # sampled state as prior for next step
-            for n in range(1,n_seq_steps):
+            for n in range(1, n_seq_steps):
                 rho_stop = self.evolve(n_step=1, rho_start=rho_inter)
                 state = self._sample_state(rho_stop, prev_states=np.array(state_seqs[ns,:n]))
                 state_seqs[ns,n] = state
                 rhos[ns,n,:] = rho_stop
+                log_probs[ns, n] = Categorical(torch.tensor(rho_stop)).log_prob(torch.tensor(state)).item()  # log prob at step n
                 if not self.no_reward_func:
                     rewards[ns,n] = self._sample_reward(state)
                 # sampled state as prior for next step
@@ -222,11 +229,12 @@ class Simulator(object):
             self.state_seqs = state_seqs.astype('int')
             self.rhos = rhos
             self.rewards = rewards
+            self.log_probs = log_probs
         else:
             self.output_scalar.loc[self.ix_slice[:,:],'state'] = state_seqs.flatten()
             self.output_vector.loc[self.ix_slice[:,:,:],'rho_stop'] = rhos.flatten()
             self.output_scalar.loc[self.ix_slice[:,:],'reward'] = rewards.flatten()
-
+            self.output_scalar.loc[self.ix_slice[:,:],'log_prob'] = log_probs.flatten()
 
     @timeit_info
     @jit(nopython=config.jit_nopython, parallel=config.jit_nopython, cache=config.jit_cache)

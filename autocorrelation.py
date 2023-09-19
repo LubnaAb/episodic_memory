@@ -49,7 +49,8 @@ def acf_gen(s, W, T, deltaT, rho):
     Wd = np.array([W[:,i,i] for i in range(n_s)]).T # (n_s,n_k)
     ACgen = np.zeros((T+1,n_t))
     for t in range(T+1):
-        rho_t = np.einsum('i, kij, k', rho, W, s**t); rho_t = rho_t/rho_t.sum()
+        rho_t = np.einsum('i, kij, k', rho, W, s**t)
+        rho_t = rho_t/rho_t.sum()
         ACgen_t = repmat(s.reshape(-1,1), 1, n_t) # (n_k,n_t) convention
         ACgen_t = ACgen_t**deltaT
         ACgen_t = Wd@ACgen_t # (n_s,n_k) x (n_k,n_t) -> (n_s,n_t)

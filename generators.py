@@ -407,7 +407,7 @@ def stochmat2generator(T, jump_rate=10.0):
     """
     assert np.allclose(T.sum(1), 1), "rows of T do not sum to 1"
     Q = jump_rate * (T - np.eye(T.shape[0]))
-    # check_generator(Q)
+    check_generator(Q)
     return Q
 
 
